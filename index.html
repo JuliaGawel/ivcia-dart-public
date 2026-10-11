@@ -157,6 +157,11 @@ function nextTurn(){
  document.getElementById("message").textContent="Teraz rzuca kolejny gracz.";
 }
 showGames();
+ 
+const db = window.supabase.createClient(
+  "https://jclepinwdgfkvxezdoih.supabase.co",
+  "sb_publishable_HMqYPdXdrIZKxjrTYy6zKw_Gsu1ZdIx"
+);
 </script>
 </body>
 </html>
