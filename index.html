@@ -1,1 +1,161 @@
 
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ivcia Dart Public</title>
+<style>
+body{margin:0;background:#10151f;color:white;font-family:Arial,sans-serif;text-align:center;padding:20px}
+h1{color:#57e389}
+input,select,button{padding:12px;margin:6px;border-radius:8px;border:0;font-size:16px}
+button{background:#57e389;color:#10151f;font-weight:bold;cursor:pointer}
+.panel{background:#202a39;padding:16px;margin:14px auto;border-radius:12px;max-width:600px}
+.player{display:inline-block;background:#303d50;padding:12px;margin:6px;border-radius:10px;min-width:100px}
+img{width:70px;height:70px;object-fit:cover;border-radius:50%}
+</style>
+</head>
+<body>
+<h1>🎯 Ivcia Dart Public</h1>
+<p>Publiczna gra w darta</p>
+
+<div class="panel">
+<h2>Twój profil</h2>
+<input id="nick" placeholder="Wpisz swój nick">
+<button onclick="saveNick()">Zapisz nick</button>
+<p id="profile">Witaj w Ivcia Dart Public!</p>
+</div>
+
+<div class="panel">
+<h2>Utwórz grę</h2>
+<input id="room" placeholder="Nazwa pokoju" value="Pokój publiczny">
+<br>
+<label>Tryb:</label>
+<select id="mode">
+<option>301</option><option selected>501</option><option>601</option>
+<option>701</option><option>801</option><option>901</option><option>999</option>
+</select>
+<br>
+<label>Liczba graczy:</label>
+<select id="max">
+<option>2</option><option>3</option><option>4</option><option>5</option>
+</select>
+<br>
+<button onclick="createGame()">Utwórz pokój</button>
+</div>
+
+<div class="panel">
+<h2>🌍 Publiczne pokoje</h2>
+<button onclick="showGames()">Odśwież listę</button>
+<div id="games">Brak załadowanych pokoi.</div>
+</div>
+
+<div class="panel">
+<h2 id="gameTitle">🎯 Twoja gra</h2>
+<div id="players"></div>
+<h2 id="score">Wynik: —</h2>
+<p id="turn">Dołącz do pokoju, aby rozpocząć.</p>
+<button onclick="throwDart(1)">Rzuć 1</button>
+<button onclick="throwDart(2)">Rzuć 2</button>
+<button onclick="throwDart(3)">Rzuć 3</button>
+<br>
+<button onclick="nextTurn()">NEXT — następny gracz</button>
+<p id="message"></p>
+</div>
+
+<script>
+const emptyImage="https://i.imgur.com/tHXWgwx.jpeg";
+let nick=localStorage.getItem("ivciaNick")||"Gracz";
+let games=JSON.parse(localStorage.getItem("ivciaGames")||"[]");
+let currentGame=null;
+let darts=0;
+
+function saveNick(){
+ const n=document.getElementById("nick").value.trim();
+ if(!n){alert("Wpisz nick!");return}
+ nick=n;localStorage.setItem("ivciaNick",nick);
+ document.getElementById("profile").textContent="Witaj, "+nick+"!";
+ showPlayers();
+}
+document.getElementById("nick").value=nick;
+
+function createGame(){
+ const game={
+ id:Date.now(),
+ name:document.getElementById("room").value.trim()||"Pokój publiczny",
+ mode:Number(document.getElementById("mode").value),
+ max:Number(document.getElementById("max").value),
+ players:[{name:nick,score:Number(document.getElementById("mode").value),avatar:emptyImage}],
+ turn:0,finished:false
+ };
+ games.push(game);
+ localStorage.setItem("ivciaGames",JSON.stringify(games));
+ currentGame=game;
+ showGames();showPlayers();updateGame();
+}
+function showGames(){
+ games=JSON.parse(localStorage.getItem("ivciaGames")||"[]");
+ const box=document.getElementById("games");
+ if(!games.length){box.textContent="Nie ma jeszcze pokoi. Utwórz pierwszy!";return}
+ box.innerHTML="";
+ games.forEach(g=>{
+  const b=document.createElement("button");
+  b.textContent=g.name+" — "+g.mode+" — "+g.players.length+"/"+g.max;
+  b.onclick=()=>joinGame(g.id);
+  box.appendChild(b);
+ });
+}
+function joinGame(id){
+ games=JSON.parse(localStorage.getItem("ivciaGames")||"[]");
+ const g=games.find(x=>x.id===id);
+ if(!g)return;
+ if(g.players.some(p=>p.name===nick)){currentGame=g;updateGame();showPlayers();return}
+ if(g.players.length>=g.max){alert("Pokój jest pełny!");return}
+ g.players.push({name:nick,score:g.mode,avatar:emptyImage});
+ currentGame=g;saveGames();showPlayers();updateGame();showGames();
+}
+function saveGames(){
+ localStorage.setItem("ivciaGames",JSON.stringify(games));
+}
+function showPlayers(){
+ const box=document.getElementById("players");box.innerHTML="";
+ if(!currentGame)return;
+ for(let i=0;i<currentGame.max;i++){
+  const p=currentGame.players[i];
+  const div=document.createElement("div");div.className="player";
+  const img=document.createElement("img");img.src=p?p.avatar:emptyImage;img.alt="Gracz";
+  const name=document.createElement("p");name.textContent=p?p.name:"Wolne miejsce";
+  div.append(img,name);box.appendChild(div);
+ }
+}
+function updateGame(){
+ if(!currentGame)return;
+ document.getElementById("gameTitle").textContent=currentGame.name+" ("+currentGame.mode+")";
+ const p=currentGame.players[currentGame.turn];
+ document.getElementById("score").textContent=p?"Wynik "+p.name+": "+p.score:"Wynik: —";
+ document.getElementById("turn").textContent=p?"Ruch gracza: "+p.name:"Brak graczy";
+}
+function throwDart(multiplier){
+ if(!currentGame||currentGame.finished){alert("Najpierw utwórz lub wybierz pokój.");return}
+ const p=currentGame.players[currentGame.turn];
+ if(!p)return;
+ if(darts>=3){alert("Wykonaj NEXT.");return}
+ const points=Math.floor(Math.random()*20+1)*multiplier;
+ p.score=Math.max(0,p.score-points);darts++;
+ document.getElementById("message").textContent="Rzut "+darts+": −"+points+" punktów";
+ if(p.score===0){
+  currentGame.finished=true;
+  document.getElementById("message").textContent="🏆 Wygrywa "+p.name+"!";
+ }
+ saveGames();updateGame();
+}
+function nextTurn(){
+ if(!currentGame||currentGame.finished)return;
+ darts=0;currentGame.turn=(currentGame.turn+1)%currentGame.players.length;
+ saveGames();updateGame();
+ document.getElementById("message").textContent="Teraz rzuca kolejny gracz.";
+}
+showGames();
+</script>
+</body>
+</html>
